@@ -105,7 +105,7 @@ def get_predictions(city, shift):
 
 #px.set_mapbox_access_token()
 
-# Update predictions and plot when the "Update" button is clicked
+# Update predictions and plot when the "Update" button is clicked - nie działa  mapa ;/ 
 if st.button("Update"):
     # Get predictions
     with st.spinner("Getting predictions..."):
