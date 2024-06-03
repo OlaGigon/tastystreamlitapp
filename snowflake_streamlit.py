@@ -1,9 +1,9 @@
-
-
 # Import Python packages
-import plotly.express as px
 import streamlit as st
 import json
+import pydeck as pdk
+import numpy as np
+import pandas as pd
 
 # Import Snowflake modules
 from snowflake.snowpark.context import get_active_session
@@ -14,17 +14,9 @@ from snowflake.snowpark import Window
 # Get the current credentials
 session = get_active_session()
 
-# Set Streamlit page config
-st.set_page_config(
-    page_title="Streamlit App: Snowpark 101",
-    page_icon=":truck:",
-    layout="wide",
-)
-
 # Add header and a subheader
-st.header("Predicted Shift Sales by Location")
-st.subheader("Data-driven recommendations for food truck drivers.")
-
+st.header("Predicted Shift Sales by Location :earth_americas:")
+st.subheader("Data-driven recommendations for food truck drivers :truck: :bento:")
 
 # Create input widgets for cities and shift
 with st.container():
@@ -100,39 +92,9 @@ def get_predictions(city, shift):
             "udf_linreg_predict_location_sales", [F.col(c) for c in feature_cols]
         ).alias("predicted_shift_sales"),
     )
-
+    #pandas Data Frame for easier manipulation and visualisation in Streamlit
     return snowpark_df.to_pandas()
 
-#px.set_mapbox_access_token()
-
-# Update predictions and plot when the "Update" button is clicked - nie działa  mapa ;/ 
-if st.button("Update"):
-    # Get predictions
-    with st.spinner("Getting predictions..."):
-        predictions = get_predictions(city, shift)
-
-    
-    # Plot on a map
-    predictions["PREDICTED_SHIFT_SALES"].clip(0, inplace=True)
-    fig = px.scatter_mapbox(
-    #px.density_mapbox(
-        predictions,
-        lat="LATITUDE",
-        lon="LONGITUDE",
-        hover_name="LOCATION_ID",
-        size="PREDICTED_SHIFT_SALES",
-        color="PREDICTED_SHIFT_SALES",
-        zoom=8,
-        height=800,
-        width=1000,
-    )
-    fig.update_layout(mapbox_style="open-street-map")
-    #fig.update_layout(mapbox_style="carto-positron")
-    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-    st.plotly_chart(fig, use_container_width=True)
-
-
-############# tu wyświetlenie data frame i jej pobranie do csv 
 
 # Update predictions and plot when the "Update" button is clicked
 if st.button("Update"):
@@ -140,46 +102,31 @@ if st.button("Update"):
     with st.spinner("Getting predictions..."):
         predictions = get_predictions(city, shift)
 
-    
+# Get the latitude and longitude of the selected city
+    city_coords = predictions[["LATITUDE", "LONGITUDE"]].mean().values
+
     # Plot on a map
     predictions["PREDICTED_SHIFT_SALES"].clip(0, inplace=True)
-    fig = px.scatter_mapbox(
-        predictions,
-        lat="LATITUDE",
-        lon="LONGITUDE",
-        hover_name="LOCATION_ID",
-        size="PREDICTED_SHIFT_SALES",
-        color="PREDICTED_SHIFT_SALES",
-        zoom=8,
-        height=800,
-        width=1000,
-    )
-    fig.update_layout(mapbox_style="open-street-map")
-    #fig.update_layout(mapbox_style="carto-positron")
-    fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
-    st.plotly_chart(fig, use_container_width=True)
-    st.write(pd.DataFrame(predictions))
-    csv = convert_df(pd.DataFrame(predictions))
-    st.download_button(
-    "Press to Download",
-    csv,
-    "file.csv",
-    "text/csv",
-    key='download-csv'
-    )
-
-    
-################ to działa poniej  ale bez wymiaru punktów
-
-# Update predictions and plot when the "Update" button is clicked
-if st.button("Update"):
-    # Get predictions
-    with st.spinner("Getting predictions..."):
-        predictions = get_predictions(city, shift)
-
-    
-    # Plot on a map
-    predictions["PREDICTED_SHIFT_SALES"].clip(0, inplace=True)
-    st.map(predictions,
-        zoom=8)
-
+    st.pydeck_chart(pdk.Deck(
+        map_style=None,
+        initial_view_state=pdk.ViewState(
+            latitude=city_coords[0],
+            longitude=city_coords[1],
+            zoom=11,
+            pitch=70,
+        ),
+        layers=[
+            pdk.Layer(
+                'HexagonLayer',
+                data=predictions,
+                get_position=['LONGITUDE', 'LATITUDE'],
+                radius=100,
+                elevation_scale=2,
+                elevation_range=[0, 1000],
+                pickable=True,
+                extruded=True,
+            
+            )
+        ]
+    ))
+        
